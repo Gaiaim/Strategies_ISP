@@ -157,7 +157,66 @@ function fmtVal(v,d=4){const r=yVal(v); return (r>=0?'+':'')+r.toFixed(d)+unit()
 function normPdf(x){return Math.exp(-0.5*x*x)/Math.sqrt(2*Math.PI);}
 function erf(x){const s=x>=0?1:-1; x=Math.abs(x); const a1=.254829592,a2=-.284496736,a3=1.421413741,a4=-1.453152027,a5=1.061405429,p=.3275911,t=1/(1+p*x); return s*(1-(((((a5*t+a4)*t)+a3)*t+a2)*t+a1)*t*Math.exp(-x*x));}
 function normCdf(x){return 0.5*(1+erf(x/Math.sqrt(2)));}
-function mtmSens(leg){const dir=dirSign(leg), F=Math.max(+document.getElementById('forwardRate').value/100,1e-8), K=Math.max(leg.strike/100,1e-8), T=Math.max(+document.getElementById('expiry').value,1e-8), vol=Math.max(+document.getElementById('vol').value/100,1e-8), df=+document.getElementById('df').value, tau=getTau(), ann=df*tau; let pv=0,delta=0,gamma=0,vega=0,theta=0; if(leg.type==='swap'||leg.type==='forward'){pv=dir*ann*(F-K); delta=dir*ann; gamma=0; vega=0; theta=0;} else {const sigT=vol*Math.sqrt(T), d1=(Math.log(F/K)+0.5*vol*vol*T)/sigT, d2=d1-sigT, phi=leg.type==='cap'?1:-1; pv=dir*ann*phi*(F*normCdf(phi*d1)-K*normCdf(phi*d2)); delta=dir*ann*phi*normCdf(phi*d1); gamma=dir*ann*normPdf(d1)/(F*sigT); vega=dir*ann*F*normPdf(d1)*Math.sqrt(T)*0.01; theta=dir*ann*(-F*normPdf(d1)*vol/(2*Math.sqrt(T))); } return {pv,delta,gamma,vega,theta};}
+function mtmSens(leg) {
+  const sign = leg.direction === 'buy' ? 1 : -1;
+
+  const F = Math.max(+document.getElementById('forwardRate').value / 100, 1e-8);
+  const K = Math.max(leg.strike / 100, 1e-8);
+  const T = Math.max(+document.getElementById('expiry').value, 1e-8);
+  const vol = Math.max(+document.getElementById('vol').value / 100, 1e-8);
+  const df = +document.getElementById('df').value;
+  const tau = getTau();
+
+  const ann = df * tau;
+
+  let pvRaw = 0;
+  let deltaRaw = 0;
+  let gammaRaw = 0;
+  let vegaRaw = 0;
+  let thetaRaw = 0;
+
+  if (leg.type === 'swap' || leg.type === 'forward') {
+    pvRaw = ann * (F - K);
+    deltaRaw = ann;
+    gammaRaw = 0;
+    vegaRaw = 0;
+    thetaRaw = 0;
+  }
+
+  if (leg.type === 'cap') {
+    const sqrtT = Math.sqrt(T);
+    const sigT = vol * sqrtT;
+    const d1 = (Math.log(F / K) + 0.5 * vol * vol * T) / sigT;
+    const d2 = d1 - sigT;
+
+    pvRaw = ann * (F * normCdf(d1) - K * normCdf(d2));
+    deltaRaw = ann * normCdf(d1);
+    gammaRaw = ann * normPdf(d1) / (F * sigT);
+    vegaRaw = ann * F * normPdf(d1) * sqrtT * 0.01;
+    thetaRaw = ann * (-F * normPdf(d1) * vol / (2 * sqrtT));
+  }
+
+  if (leg.type === 'floor') {
+    const sqrtT = Math.sqrt(T);
+    const sigT = vol * sqrtT;
+    const d1 = (Math.log(F / K) + 0.5 * vol * vol * T) / sigT;
+    const d2 = d1 - sigT;
+
+    pvRaw = ann * (K * normCdf(-d2) - F * normCdf(-d1));
+    deltaRaw = ann * (normCdf(d1) - 1);
+    gammaRaw = ann * normPdf(d1) / (F * sigT);
+    vegaRaw = ann * F * normPdf(d1) * sqrtT * 0.01;
+    thetaRaw = ann * (-F * normPdf(d1) * vol / (2 * sqrtT));
+  }
+
+  return {
+    pv: sign * pvRaw,
+    delta: sign * deltaRaw,
+    gamma: sign * gammaRaw,
+    vega: sign * vegaRaw,
+    theta: sign * thetaRaw
+  };
+}
 function setView(view){document.getElementById('payoff-card').style.display=view==='payoff'?'flex':'none'; document.getElementById('sens-card').style.display=view==='sensitivities'?'flex':'none'; document.getElementById('tab-payoff').classList.toggle('active',view==='payoff'); document.getElementById('tab-sens').classList.toggle('active',view==='sensitivities'); updateSensitivities(); if(myChart) myChart.resize();}
 function update(){const tau=getTau(); document.getElementById('chart-sub').textContent=`Payoff as function of Euribor fixing · τ = ${tau.toFixed(4)} (${getTauLabel()}) · Option premiums not included`; if(!legs.length){document.getElementById('empty-state').style.display='flex'; document.getElementById('myChart').style.display='none'; clearStats(); updateLegend(); updateSensitivities(); return;} document.getElementById('empty-state').style.display='none'; document.getElementById('myChart').style.display='block'; const grid=buildGrid(), labels=grid.map(e=>fmtPct(e)), totalPayoff=grid.map(e=>legs.reduce((s,l)=>s+legPayoff(l,e),0)); const datasets=[{label:'__zero',data:grid.map(()=>0),borderColor:'rgba(0,0,0,0.12)',borderWidth:1,borderDash:[5,4],pointRadius:0,fill:false,tension:0,order:99}]; if(showLegs){legs.forEach((leg,i)=>datasets.push({label:`Leg ${i+1}`,data:grid.map(e=>yVal(legPayoff(leg,e))),borderColor:legColor(i),borderWidth:1.5,borderDash:[6,4],pointRadius:0,fill:false,tension:0,hidden:hiddenSeries.has('leg'+i),order:10+i}));} datasets.push({label:'Strategy',data:totalPayoff.map(yVal),borderColor:'#2563eb',borderWidth:2.5,pointRadius:0,fill:{target:'origin',above:'rgba(37,99,235,0.06)',below:'rgba(220,38,38,0.06)'},tension:0,hidden:hiddenSeries.has('strategy'),order:0}); const yLabel=document.getElementById('yUnit').value==='pct'?'Payoff (%)':'Payoff (M EUR)'; const opts={responsive:true,maintainAspectRatio:false,animation:false,interaction:{mode:'index',intersect:false},plugins:{legend:{display:false},tooltip:{backgroundColor:'#fff',borderColor:'#e2e8f2',borderWidth:1.5,titleColor:'#5a6680',bodyColor:'#1a2233',titleFont:{family:"'Sora'",size:10,weight:'600'},bodyFont:{family:"'JetBrains Mono'",size:11},padding:12,callbacks:{title:items=>'Euribor: '+items[0].label,label:ctx=>{if(ctx.dataset.label==='__zero')return null; const v=ctx.parsed.y,s=v>=0?'+':''; return `  ${ctx.dataset.label}: ${s}${v.toFixed(3)}${unit()}`;}}}},scales:{x:{grid:{color:'rgba(0,0,0,0.04)'},ticks:{color:'#9aa5b8',font:{family:"'Sora'",size:10},maxTicksLimit:14,maxRotation:0},title:{display:true,text:'Euribor Fixing',color:'#9aa5b8',font:{family:"'Sora'",size:11}}},y:{grid:{color:'rgba(0,0,0,0.04)'},ticks:{color:'#9aa5b8',font:{family:"'JetBrains Mono'",size:10},callback:v=>v.toFixed(2)+unit()},title:{display:true,text:yLabel,color:'#9aa5b8',font:{family:"'Sora'",size:11}}}}}; const canvas=document.getElementById('myChart'); if(!myChart){myChart=new Chart(canvas.getContext('2d'),{type:'line',data:{labels,datasets},options:opts});} else {myChart.data.labels=labels; myChart.data.datasets=datasets; myChart.options=opts; myChart.update('none');} updateStats(grid,totalPayoff); updateLegend(); updateSensitivities();}
 function clearStats(){['stat-max','stat-min','stat-fwd','stat-be'].forEach(id=>{document.getElementById(id).textContent='—'; document.getElementById(id).className='stat-card-value val-neutral';}); ['stat-max-sub','stat-min-sub','stat-fwd-sub'].forEach(id=>document.getElementById(id).textContent='—');}
