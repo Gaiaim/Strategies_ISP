@@ -230,7 +230,42 @@ function addLeg(type='cap',dir='buy',strike=3){legs.push({type,direction:dir,str
 function removeLeg(i){legs.splice(i,1); renderLegs(); update();}
 function setLegField(i,field,val){legs[i][field]=val; renderLegs(); update();}
 function renderLegs(){const list=document.getElementById('legs-list'); list.innerHTML=''; legs.forEach((leg,i)=>{const card=document.createElement('div'); card.className='leg-card'; card.innerHTML=`<div class="leg-card-header"><div class="leg-dot" style="background:${legColor(i)}"></div><span class="leg-title">Leg ${i+1}</span><span class="leg-badge leg-badge-${leg.direction}">${leg.direction.toUpperCase()}</span><button class="leg-del-btn" onclick="removeLeg(${i})">×</button></div><div class="leg-card-body"><div class="grid-3"><div class="field"><div class="field-label">Instrument</div><select onchange="setLegField(${i},'type',this.value)"><option value="cap" ${leg.type==='cap'?'selected':''}>Cap</option><option value="floor" ${leg.type==='floor'?'selected':''}>Floor</option><option value="swap" ${leg.type==='swap'?'selected':''}>IRS</option><option value="forward" ${leg.type==='forward'?'selected':''}>Forward/FRA</option></select></div><div class="field"><div class="field-label">Direction</div><div class="seg"><button class="seg-btn ${leg.direction==='buy'?'active-buy':''}" onclick="setLegField(${i},'direction','buy')">Buy</button><button class="seg-btn ${leg.direction==='sell'?'active-sell':''}" onclick="setLegField(${i},'direction','sell')">Sell</button></div></div><div class="field"><div class="field-label">Strike %</div><input type="number" value="${leg.strike}" step="0.25" onchange="setLegField(${i},'strike',parseFloat(this.value)||0)"></div></div></div>`; list.appendChild(card);});}
-const PRESETS={capSpread:[['cap','buy',3],['cap','sell',5]],collar:[['cap','buy',5],['floor','sell',2],['swap','sell',3]],swap:[['swap','sell',3]],floor:[['floor','buy',2]],reverseCollar:[['cap','sell',5],['floor','buy',2]],cap:[['cap','buy',3]],forwardBuy:[['forward','buy',3]],forwardSell:[['forward','sell',3]]};
+const PRESETS = {
+  capSpread: [
+    ['cap', 'buy', 3],
+    ['cap', 'sell', 5]
+  ],
+
+  collar: [
+    ['cap', 'buy', 5],
+    ['floor', 'sell', 2]
+  ],
+
+  swap: [
+    ['swap', 'sell', 3]
+  ],
+
+  floor: [
+    ['floor', 'buy', 2]
+  ],
+
+  reverseCollar: [
+    ['cap', 'sell', 5],
+    ['floor', 'buy', 2]
+  ],
+
+  cap: [
+    ['cap', 'buy', 3]
+  ],
+
+  forwardBuy: [
+    ['forward', 'buy', 3]
+  ],
+
+  forwardSell: [
+    ['forward', 'sell', 3]
+  ]
+};
 function loadPreset(name){legs=[]; PRESETS[name].forEach(([t,d,s])=>legs.push({type:t,direction:d,strike:s})); renderLegs(); update();}
 function exportCSV(){if(!legs.length){alert('Add at least one leg first.'); return;} const grid=buildGrid(), u=document.getElementById('yUnit').value==='pct'?'%':'M EUR'; let csv=`Euribor,Strategy (${u})`; if(showLegs) legs.forEach((_,i)=>csv+=`,Leg ${i+1} (${u})`); csv+='\n'; grid.forEach(e=>{const total=legs.reduce((s,l)=>s+legPayoff(l,e),0); let row=`${(e*100).toFixed(4)},${yVal(total).toFixed(5)}`; if(showLegs) legs.forEach(l=>row+=`,${yVal(legPayoff(l,e)).toFixed(5)}`); csv+=row+'\n';}); const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'})); a.download='strategy_payoff.csv'; a.click();}
 function shareLink(){const state={legs,eMin:document.getElementById('eMin').value,eMax:document.getElementById('eMax').value,eStep:document.getElementById('eStep').value,tau:document.getElementById('tauSelect').value,tauCustom:document.getElementById('tauCustom').value,notional:document.getElementById('notional').value,yUnit:document.getElementById('yUnit').value,forwardRate:document.getElementById('forwardRate').value,expiry:document.getElementById('expiry').value,vol:document.getElementById('vol').value,df:document.getElementById('df').value}; const url=window.location.href.split('?')[0]+'?s='+btoa(JSON.stringify(state)); navigator.clipboard.writeText(url).then(()=>alert('Link copied!\n\nSend it to your client — they will see the same strategy loaded automatically.'));}
