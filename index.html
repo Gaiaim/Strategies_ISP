@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>StrategyBuilder · IR Derivatives</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --white:#ffffff; --bg:#f5f7fa; --bg2:#eef1f6; --border:#e2e8f2; --border2:#cdd5e0;
+  --text:#1a2233; --text2:#5a6680; --text3:#9aa5b8;
+  --blue:#2563eb; --blue-light:#eff4ff;
+  --green:#059669; --green-light:#ecfdf5;
+  --red:#dc2626; --red-light:#fef2f2;
+  --orange:#d97706; --orange-light:#fffbeb;
+  --purple:#7c3aed;
+  --shadow-sm:0 1px 3px rgba(0,0,0,0.07),0 1px 2px rgba(0,0,0,0.04);
+  --shadow:0 4px 12px rgba(0,0,0,0.08),0 1px 3px rgba(0,0,0,0.05);
+  --radius:12px; --radius-sm:8px;
+  --font:'Sora',sans-serif; --mono:'JetBrains Mono',monospace;
+}
+body { background:var(--bg); color:var(--text); font-family:var(--font); min-height:100vh; font-size:14px; line-height:1.5; }
+.topbar { background:var(--white); border-bottom:1px solid var(--border); padding:0 32px; height:60px; display:flex; align-items:center; gap:16px; position:sticky; top:0; z-index:100; box-shadow:var(--shadow-sm); }
+.logo { display:flex; align-items:center; gap:10px; text-decoration:none; }
+.logo-icon { width:34px; height:34px; background:linear-gradient(135deg,#2563eb,#7c3aed); border-radius:9px; display:flex; align-items:center; justify-content:center; color:white; font-size:15px; font-weight:700; font-family:var(--mono); }
+.logo-text { font-size:15px; font-weight:600; color:var(--text); letter-spacing:-0.01em; }
+.logo-sub { font-size:11px; color:var(--text3); font-weight:400; }
+.topbar-center { flex:1; display:flex; justify-content:center; }
+.tabs { display:flex; background:var(--bg); border-radius:8px; padding:3px; gap:2px; }
+.tab { padding:5px 16px; border-radius:6px; font-size:12px; font-weight:500; color:var(--text2); cursor:pointer; transition:all 0.15s; border:none; background:none; }
+.tab.active { background:var(--white); color:var(--text); box-shadow:var(--shadow-sm); }
+.topbar-actions { display:flex; align-items:center; gap:10px; margin-left:auto; }
+.btn { display:inline-flex; align-items:center; gap:6px; padding:7px 14px; border-radius:var(--radius-sm); font-size:12px; font-weight:500; font-family:var(--font); cursor:pointer; border:none; transition:all 0.15s; }
+.btn-ghost { background:none; color:var(--text2); border:1px solid var(--border); }
+.btn-ghost:hover { background:var(--bg); color:var(--text); }
+.btn-primary { background:var(--blue); color:white; }
+.btn-primary:hover { background:#1d4ed8; }
+.app { display:grid; grid-template-columns:350px 1fr; min-height:calc(100vh - 60px - 125px); }
+.sidebar { background:var(--white); border-right:1px solid var(--border); overflow-y:auto; padding:24px 20px; display:flex; flex-direction:column; gap:20px; }
+.sidebar-section { display:flex; flex-direction:column; gap:10px; }
+.sidebar-label { font-size:11px; font-weight:600; letter-spacing:0.06em; text-transform:uppercase; color:var(--text3); padding-bottom:2px; border-bottom:1px solid var(--border); }
+.field { display:flex; flex-direction:column; gap:4px; }
+.field-label { font-size:11px; font-weight:500; color:var(--text2); }
+input[type=number], select { width:100%; height:36px; border:1.5px solid var(--border); border-radius:var(--radius-sm); padding:0 10px; font-size:13px; font-family:var(--font); color:var(--text); background:var(--white); outline:none; transition:border-color 0.15s,box-shadow 0.15s; -moz-appearance:textfield; }
+input::-webkit-inner-spin-button { -webkit-appearance:none; }
+input:focus, select:focus { border-color:var(--blue); box-shadow:0 0 0 3px rgba(37,99,235,0.1); }
+.grid-3 { display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; }
+.grid-2 { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+.seg { display:flex; border:1.5px solid var(--border); border-radius:var(--radius-sm); overflow:hidden; }
+.seg-btn { flex:1; height:34px; border:none; background:none; font-size:12px; font-weight:500; font-family:var(--font); color:var(--text2); cursor:pointer; transition:all 0.15s; }
+.seg-btn+.seg-btn { border-left:1px solid var(--border); }
+.seg-btn.active-buy  { background:var(--green-light); color:var(--green); font-weight:600; }
+.seg-btn.active-sell { background:var(--red-light);   color:var(--red);   font-weight:600; }
+.legs-stack { display:flex; flex-direction:column; gap:10px; }
+.leg-card { border:1.5px solid var(--border); border-radius:var(--radius); background:var(--white); overflow:hidden; transition:box-shadow 0.15s; animation:slideIn 0.2s ease; }
+@keyframes slideIn { from{opacity:0;transform:translateY(-6px)} to{opacity:1;transform:translateY(0)} }
+.leg-card:hover { box-shadow:var(--shadow); }
+.leg-card-header { display:flex; align-items:center; padding:10px 14px; gap:8px; border-bottom:1px solid var(--border); }
+.leg-dot { width:10px; height:10px; border-radius:50%; flex-shrink:0; }
+.leg-title { font-size:12px; font-weight:600; color:var(--text); flex:1; }
+.leg-badge { font-size:10px; font-weight:600; font-family:var(--mono); padding:2px 7px; border-radius:4px; text-transform:uppercase; letter-spacing:0.04em; }
+.leg-badge-buy  { background:var(--green-light); color:var(--green); }
+.leg-badge-sell { background:var(--red-light);   color:var(--red); }
+.leg-del-btn { background:none; border:none; color:var(--text3); font-size:18px; line-height:1; cursor:pointer; padding:0 2px; border-radius:4px; transition:all 0.15s; }
+.leg-del-btn:hover { color:var(--red); background:var(--red-light); }
+.leg-card-body { padding:12px 14px; }
+.add-leg-btn { display:flex; align-items:center; justify-content:center; gap:8px; width:100%; height:40px; border:1.5px dashed var(--border2); border-radius:var(--radius); background:none; color:var(--text3); font-size:12px; font-weight:500; font-family:var(--font); cursor:pointer; transition:all 0.15s; }
+.add-leg-btn:hover { border-color:var(--blue); color:var(--blue); background:var(--blue-light); }
+.presets { display:flex; flex-wrap:wrap; gap:6px; }
+.preset-chip { padding:5px 10px; border-radius:20px; border:1.5px solid var(--border); background:var(--white); font-size:11px; font-weight:500; color:var(--text2); cursor:pointer; transition:all 0.15s; }
+.preset-chip:hover { border-color:var(--blue); color:var(--blue); background:var(--blue-light); }
+.right-panel { padding:24px 28px; display:flex; flex-direction:column; gap:20px; overflow:hidden; }
+.stat-row { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; }
+.stat-card { background:var(--white); border:1.5px solid var(--border); border-radius:var(--radius); padding:14px 18px; box-shadow:var(--shadow-sm); transition:box-shadow 0.15s; }
+.stat-card:hover { box-shadow:var(--shadow); }
+.stat-card-label { font-size:10px; font-weight:600; letter-spacing:0.07em; text-transform:uppercase; color:var(--text3); margin-bottom:6px; }
+.stat-card-value { font-family:var(--mono); font-size:18px; font-weight:500; line-height:1; }
+.stat-card-sub { font-size:10px; color:var(--text3); margin-top:4px; }
+.val-pos { color:var(--green); } .val-neg { color:var(--red); } .val-neutral { color:var(--text); }
+.stat-card.accent-green  { border-left:3px solid var(--green); }
+.stat-card.accent-red    { border-left:3px solid var(--red); }
+.stat-card.accent-blue   { border-left:3px solid var(--blue); }
+.stat-card.accent-orange { border-left:3px solid var(--orange); }
+.chart-card, .sens-card { flex:1; background:var(--white); border:1.5px solid var(--border); border-radius:var(--radius); box-shadow:var(--shadow-sm); display:flex; flex-direction:column; overflow:hidden; min-height:0; }
+.sens-card { display:none; }
+.chart-card-header, .sens-card-header { padding:16px 20px 12px; border-bottom:1px solid var(--border); display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
+.chart-card-title, .sens-card-title { font-size:13px; font-weight:600; color:var(--text); }
+.chart-card-sub, .sens-card-sub { font-size:11px; color:var(--text3); margin-left:2px; }
+.chart-legend { display:flex; flex-wrap:wrap; gap:6px; margin-left:auto; }
+.legend-item { display:flex; align-items:center; gap:5px; font-size:11px; font-weight:500; color:var(--text2); padding:3px 9px; border-radius:20px; border:1.5px solid var(--border); cursor:pointer; transition:all 0.15s; user-select:none; }
+.legend-item.hidden { opacity:0.35; }
+.legend-dot { width:8px; height:8px; border-radius:50%; flex-shrink:0; }
+.toggle-row { display:flex; align-items:center; gap:7px; font-size:11px; font-weight:500; color:var(--text2); cursor:pointer; user-select:none; padding:3px 9px; border-radius:20px; border:1.5px solid var(--border); transition:all 0.15s; }
+.sw { width:26px; height:14px; background:var(--border2); border-radius:7px; position:relative; transition:background 0.2s; flex-shrink:0; }
+.sw.on { background:var(--blue); }
+.sw::after { content:''; position:absolute; width:10px; height:10px; background:#fff; border-radius:50%; top:2px; left:2px; transition:left 0.2s; box-shadow:0 1px 3px rgba(0,0,0,0.2); }
+.sw.on::after { left:14px; }
+.chart-canvas-wrap { flex:1; padding:16px 20px 20px; min-height:0; position:relative; }
+canvas { display:block; width:100% !important; }
+.empty-state { display:flex; flex-direction:column; align-items:center; justify-content:center; height:100%; gap:12px; color:var(--text3); }
+.empty-icon { font-size:48px; opacity:0.4; }
+.empty-text { font-size:13px; font-weight:500; }
+.empty-sub  { font-size:11px; }
+.sens-body { padding:14px 20px 20px; overflow:auto; }
+.sens-table { width:100%; border-collapse:collapse; font-size:11px; }
+.sens-table th { text-align:left; color:var(--text3); font-weight:600; text-transform:uppercase; letter-spacing:0.04em; padding:8px 7px; border-bottom:1px solid var(--border); white-space:nowrap; }
+.sens-table td { padding:9px 7px; border-bottom:1px solid var(--border); color:var(--text2); white-space:nowrap; }
+.sens-table tfoot td { font-weight:600; background:var(--bg); }
+.mono { font-family:var(--mono); color:var(--text) !important; }
+.sens-note { margin-top:12px; font-size:10px; color:var(--text3); line-height:1.6; }
+.footer { background:var(--white); border-top:1px solid var(--border); padding:16px 32px; }
+.disclaimer-box { display:flex; gap:12px; align-items:flex-start; background:var(--orange-light); border:1.5px solid #fde68a; border-radius:var(--radius-sm); padding:14px 18px; margin-bottom:10px; }
+.disclaimer-icon { font-size:18px; flex-shrink:0; margin-top:1px; }
+.disclaimer-text { font-size:11px; color:#92400e; line-height:1.7; }
+.disclaimer-text strong { font-weight:700; color:#78350f; display:block; margin-bottom:2px; font-size:12px; }
+.disclaimer-premium { display:inline-block; margin-top:6px; font-weight:600; color:#b45309; background:rgba(180,83,9,0.08); padding:2px 8px; border-radius:4px; }
+.footer-legal { font-size:10px; color:var(--text3); text-align:center; }
+@media(max-width:900px) {.app { grid-template-columns:1fr; }.sidebar { border-right:none; border-bottom:1px solid var(--border); }.stat-row { grid-template-columns:1fr 1fr; }}
+</style>
+</head>
+<body>
+<header class="topbar">
+  <div class="logo"><div class="logo-icon">SB</div><div><div class="logo-text">StrategyBuilder</div><div class="logo-sub">Interest Rate Derivatives</div></div></div>
+  <div class="topbar-center"><div class="tabs"><button class="tab active" id="tab-payoff" onclick="setView('payoff')">Payoff Chart</button><button class="tab" onclick="alert('Coming soon: scenario analysis across multiple rate paths.')">Scenario Analysis</button><button class="tab" id="tab-sens" onclick="setView('sensitivities')">Sensitivities</button></div></div>
+  <div class="topbar-actions"><button class="btn btn-ghost" onclick="exportCSV()">↓ Export CSV</button><button class="btn btn-primary" onclick="shareLink()">⬡ Share</button></div>
+</header>
+<div class="app">
+  <aside class="sidebar">
+    <div class="sidebar-section"><div class="sidebar-label">Quick Presets</div><div class="presets"><div class="preset-chip" onclick="loadPreset('capSpread')">Cap Spread</div><div class="preset-chip" onclick="loadPreset('collar')">Collar</div><div class="preset-chip" onclick="loadPreset('swap')">Pay Fixed Swap</div><div class="preset-chip" onclick="loadPreset('floor')">Floor</div><div class="preset-chip" onclick="loadPreset('reverseCollar')">Reverse Collar</div><div class="preset-chip" onclick="loadPreset('cap')">Cap</div><div class="preset-chip" onclick="loadPreset('forwardBuy')">Buy Forward/FRA</div><div class="preset-chip" onclick="loadPreset('forwardSell')">Sell Forward/FRA</div></div></div>
+    <div class="sidebar-section"><div class="sidebar-label">Market & Period</div><div class="grid-3"><div class="field"><div class="field-label">Euribor min %</div><input type="number" id="eMin" value="-1" step="0.5" onchange="update()"></div><div class="field"><div class="field-label">Euribor max %</div><input type="number" id="eMax" value="8" step="0.5" onchange="update()"></div><div class="field"><div class="field-label">Step (bps)</div><input type="number" id="eStep" value="25" step="5" min="1" onchange="update()"></div></div><div class="grid-2"><div class="field"><div class="field-label">τ — Interest Period</div><select id="tauSelect" onchange="onTauChange()"><option value="0.0833">Monthly (1M)</option><option value="0.25" selected>Quarterly (3M)</option><option value="0.5">Semi-annual (6M)</option><option value="1">Annual (1Y)</option><option value="custom">Custom…</option></select></div><div class="field"><div class="field-label">Notional (M €)</div><input type="number" id="notional" value="1" step="0.5" min="0.01" onchange="update()"></div></div><div class="field" id="tauCustomWrap" style="display:none"><div class="field-label">Custom τ (year fraction)</div><input type="number" id="tauCustom" value="0.25" step="0.0833" min="0.001" onchange="update()"></div><div class="field"><div class="field-label">Display as</div><select id="yUnit" onchange="update()"><option value="pct">% payoff / sensitivities</option><option value="eur">EUR (M)</option></select></div></div>
+    <div class="sidebar-section"><div class="sidebar-label">Pricing Inputs for Sensitivities</div><div class="grid-2"><div class="field"><div class="field-label">Forward rate F %</div><input type="number" id="forwardRate" value="3" step="0.25" onchange="update()"></div><div class="field"><div class="field-label">Option expiry T (Y)</div><input type="number" id="expiry" value="1" step="0.25" min="0.0001" onchange="update()"></div></div><div class="grid-2"><div class="field"><div class="field-label">Black vol σ %</div><input type="number" id="vol" value="30" step="1" min="0.01" onchange="update()"></div><div class="field"><div class="field-label">Discount factor DF</div><input type="number" id="df" value="0.97" step="0.005" min="0" max="1.5" onchange="update()"></div></div></div>
+    <div class="sidebar-section" style="flex:1"><div class="sidebar-label">Strategy Legs</div><div class="legs-stack" id="legs-list"></div><button class="add-leg-btn" onclick="addLeg()"><span style="font-size:18px;line-height:1">+</span> Add Leg</button></div>
+  </aside>
+  <main class="right-panel">
+    <div class="stat-row"><div class="stat-card accent-green"><div class="stat-card-label">Max Payoff</div><div class="stat-card-value val-pos" id="stat-max">—</div><div class="stat-card-sub" id="stat-max-sub">—</div></div><div class="stat-card accent-red"><div class="stat-card-label">Min Payoff</div><div class="stat-card-value val-neg" id="stat-min">—</div><div class="stat-card-sub" id="stat-min-sub">—</div></div><div class="stat-card accent-blue"><div class="stat-card-label">Payoff at Forward</div><div class="stat-card-value val-neutral" id="stat-fwd">—</div><div class="stat-card-sub" id="stat-fwd-sub">—</div></div><div class="stat-card accent-orange"><div class="stat-card-label">Break-even(s)</div><div class="stat-card-value val-neutral" id="stat-be" style="font-size:13px;padding-top:3px">—</div><div class="stat-card-sub">Euribor fixing</div></div></div>
+    <div class="chart-card" id="payoff-card"><div class="chart-card-header"><div><div class="chart-card-title">Strategy Payoff — Single Period</div><div class="chart-card-sub" id="chart-sub">—</div></div><div class="toggle-row" onclick="toggleLegs()" style="margin-left:auto"><div class="sw" id="legs-sw"></div>Show individual legs</div><div class="chart-legend" id="chart-legend"></div></div><div class="chart-canvas-wrap" id="chart-wrap"><div class="empty-state" id="empty-state"><div class="empty-icon">📐</div><div class="empty-text">No legs added yet</div><div class="empty-sub">Add a leg from the sidebar to build your strategy</div></div><canvas id="myChart" style="display:none"></canvas></div></div>
+    <div class="sens-card" id="sens-card"><div class="sens-card-header"><div><div class="sens-card-title">Mark-to-Market Sensitivities / Greeks</div><div class="sens-card-sub" id="sens-sub">Black-76 for caplets/floorlets; linear PV for swaps and forwards/FRA.</div></div></div><div class="sens-body"><table class="sens-table"><thead><tr><th>Leg</th><th>Product</th><th>Dir.</th><th>K</th><th>PV</th><th>Delta</th><th>Gamma</th><th>Vega / 1 vol pt</th><th>Theta / year</th></tr></thead><tbody id="sens-tbody"></tbody><tfoot><tr><td colspan="4" class="mono">Total</td><td class="mono" id="tot-pv">—</td><td class="mono" id="tot-delta">—</td><td class="mono" id="tot-gamma">—</td><td class="mono" id="tot-vega">—</td><td class="mono" id="tot-theta">—</td></tr></tfoot></table><div class="sens-note">Client interpretation: Delta measures sensitivity to the forward Euribor rate F; Gamma is curvature versus F; Vega is the change for +1 percentage point of Black volatility; Theta is a simplified annual time decay. This is a clean illustrative model, not a full bank production pricer: premiums, smile/skew, full curve construction, convexity adjustments, calendars and collateral effects are excluded.</div></div></div>
+  </main>
+</div>
+<footer class="footer"><div class="disclaimer-box"><div class="disclaimer-icon">⚠️</div><div class="disclaimer-text"><strong>Disclaimer</strong>This tool simulates the gross payoff of interest rate hedging strategies by combining swaps, forwards/FRA, caps and floors. The output shows individual leg contributions, total strategy payoff and simplified sensitivities. <span class="disclaimer-premium">⚠ Option premiums are not included in the payoff chart. Sensitivities use simplified Black-76 assumptions for caplets/floorlets.</span> For illustrative purposes only — not financial advice.</div></div><div class="footer-legal">StrategyBuilder · Interest Rate Derivatives Payoff Analyser · © 2026</div></footer>
+<script>
+const COLORS = ['#2563eb','#059669','#d97706','#dc2626','#7c3aed','#0891b2','#65a30d','#c2410c'];
+let legs = [], showLegs = false, hiddenSeries = new Set(), myChart = null;
+const legColor = i => COLORS[i % COLORS.length];
+function getTau(){const v=document.getElementById('tauSelect').value; if(v==='custom') return +document.getElementById('tauCustom').value || 0.25; return +v;}
+function getTauLabel(){const map={'0.0833':'1M','0.25':'3M','0.5':'6M','1':'1Y'}; const v=document.getElementById('tauSelect').value; return v==='custom'?'custom':map[v];}
+function onTauChange(){document.getElementById('tauCustomWrap').style.display=document.getElementById('tauSelect').value==='custom'?'block':'none'; update();}
+function dirSign(leg){return leg.direction==='buy'?1:-1;}
+function legPayoff(leg,e){const dir=dirSign(leg), K=leg.strike/100, tau=getTau(); if(leg.type==='cap') return dir*Math.max(e-K,0)*tau; if(leg.type==='floor') return dir*Math.max(K-e,0)*tau; if(leg.type==='swap'||leg.type==='forward') return dir*(e-K)*tau; return 0;}
+function buildGrid(){const lo=+document.getElementById('eMin').value/100, hi=+document.getElementById('eMax').value/100, st=+document.getElementById('eStep').value/10000, arr=[]; for(let e=lo;e<=hi+1e-9;e+=st) arr.push(Math.round(e*1e5)/1e5); return arr;}
+function yVal(v){return document.getElementById('yUnit').value==='pct'?v*100:v*(+document.getElementById('notional').value);}
+function unit(){return document.getElementById('yUnit').value==='pct'?'%':' M';}
+function fmtPct(v){return (v*100).toFixed(2)+'%';}
+function fmtVal(v,d=4){const r=yVal(v); return (r>=0?'+':'')+r.toFixed(d)+unit();}
+function normPdf(x){return Math.exp(-0.5*x*x)/Math.sqrt(2*Math.PI);}
+function erf(x){const s=x>=0?1:-1; x=Math.abs(x); const a1=.254829592,a2=-.284496736,a3=1.421413741,a4=-1.453152027,a5=1.061405429,p=.3275911,t=1/(1+p*x); return s*(1-(((((a5*t+a4)*t)+a3)*t+a2)*t+a1)*t*Math.exp(-x*x));}
+function normCdf(x){return 0.5*(1+erf(x/Math.sqrt(2)));}
+function mtmSens(leg){const dir=dirSign(leg), F=Math.max(+document.getElementById('forwardRate').value/100,1e-8), K=Math.max(leg.strike/100,1e-8), T=Math.max(+document.getElementById('expiry').value,1e-8), vol=Math.max(+document.getElementById('vol').value/100,1e-8), df=+document.getElementById('df').value, tau=getTau(), ann=df*tau; let pv=0,delta=0,gamma=0,vega=0,theta=0; if(leg.type==='swap'||leg.type==='forward'){pv=dir*ann*(F-K); delta=dir*ann; gamma=0; vega=0; theta=0;} else {const sigT=vol*Math.sqrt(T), d1=(Math.log(F/K)+0.5*vol*vol*T)/sigT, d2=d1-sigT, phi=leg.type==='cap'?1:-1; pv=dir*ann*phi*(F*normCdf(phi*d1)-K*normCdf(phi*d2)); delta=dir*ann*phi*normCdf(phi*d1); gamma=dir*ann*normPdf(d1)/(F*sigT); vega=dir*ann*F*normPdf(d1)*Math.sqrt(T)*0.01; theta=dir*ann*(-F*normPdf(d1)*vol/(2*Math.sqrt(T))); } return {pv,delta,gamma,vega,theta};}
+function setView(view){document.getElementById('payoff-card').style.display=view==='payoff'?'flex':'none'; document.getElementById('sens-card').style.display=view==='sensitivities'?'flex':'none'; document.getElementById('tab-payoff').classList.toggle('active',view==='payoff'); document.getElementById('tab-sens').classList.toggle('active',view==='sensitivities'); updateSensitivities(); if(myChart) myChart.resize();}
+function update(){const tau=getTau(); document.getElementById('chart-sub').textContent=`Payoff as function of Euribor fixing · τ = ${tau.toFixed(4)} (${getTauLabel()}) · Option premiums not included`; if(!legs.length){document.getElementById('empty-state').style.display='flex'; document.getElementById('myChart').style.display='none'; clearStats(); updateLegend(); updateSensitivities(); return;} document.getElementById('empty-state').style.display='none'; document.getElementById('myChart').style.display='block'; const grid=buildGrid(), labels=grid.map(e=>fmtPct(e)), totalPayoff=grid.map(e=>legs.reduce((s,l)=>s+legPayoff(l,e),0)); const datasets=[{label:'__zero',data:grid.map(()=>0),borderColor:'rgba(0,0,0,0.12)',borderWidth:1,borderDash:[5,4],pointRadius:0,fill:false,tension:0,order:99}]; if(showLegs){legs.forEach((leg,i)=>datasets.push({label:`Leg ${i+1}`,data:grid.map(e=>yVal(legPayoff(leg,e))),borderColor:legColor(i),borderWidth:1.5,borderDash:[6,4],pointRadius:0,fill:false,tension:0,hidden:hiddenSeries.has('leg'+i),order:10+i}));} datasets.push({label:'Strategy',data:totalPayoff.map(yVal),borderColor:'#2563eb',borderWidth:2.5,pointRadius:0,fill:{target:'origin',above:'rgba(37,99,235,0.06)',below:'rgba(220,38,38,0.06)'},tension:0,hidden:hiddenSeries.has('strategy'),order:0}); const yLabel=document.getElementById('yUnit').value==='pct'?'Payoff (%)':'Payoff (M EUR)'; const opts={responsive:true,maintainAspectRatio:false,animation:false,interaction:{mode:'index',intersect:false},plugins:{legend:{display:false},tooltip:{backgroundColor:'#fff',borderColor:'#e2e8f2',borderWidth:1.5,titleColor:'#5a6680',bodyColor:'#1a2233',titleFont:{family:"'Sora'",size:10,weight:'600'},bodyFont:{family:"'JetBrains Mono'",size:11},padding:12,callbacks:{title:items=>'Euribor: '+items[0].label,label:ctx=>{if(ctx.dataset.label==='__zero')return null; const v=ctx.parsed.y,s=v>=0?'+':''; return `  ${ctx.dataset.label}: ${s}${v.toFixed(3)}${unit()}`;}}}},scales:{x:{grid:{color:'rgba(0,0,0,0.04)'},ticks:{color:'#9aa5b8',font:{family:"'Sora'",size:10},maxTicksLimit:14,maxRotation:0},title:{display:true,text:'Euribor Fixing',color:'#9aa5b8',font:{family:"'Sora'",size:11}}},y:{grid:{color:'rgba(0,0,0,0.04)'},ticks:{color:'#9aa5b8',font:{family:"'JetBrains Mono'",size:10},callback:v=>v.toFixed(2)+unit()},title:{display:true,text:yLabel,color:'#9aa5b8',font:{family:"'Sora'",size:11}}}}}; const canvas=document.getElementById('myChart'); if(!myChart){myChart=new Chart(canvas.getContext('2d'),{type:'line',data:{labels,datasets},options:opts});} else {myChart.data.labels=labels; myChart.data.datasets=datasets; myChart.options=opts; myChart.update('none');} updateStats(grid,totalPayoff); updateLegend(); updateSensitivities();}
+function clearStats(){['stat-max','stat-min','stat-fwd','stat-be'].forEach(id=>{document.getElementById(id).textContent='—'; document.getElementById(id).className='stat-card-value val-neutral';}); ['stat-max-sub','stat-min-sub','stat-fwd-sub'].forEach(id=>document.getElementById(id).textContent='—');}
+function updateStats(grid,totalPayoff){const maxP=Math.max(...totalPayoff), minP=Math.min(...totalPayoff), fwd=+document.getElementById('forwardRate').value/100, fwdP=legs.reduce((s,l)=>s+legPayoff(l,fwd),0), bes=[]; for(let i=0;i<totalPayoff.length-1;i++){if(Math.abs(totalPayoff[i])<1e-12) bes.push(fmtPct(grid[i])); else if(totalPayoff[i]*totalPayoff[i+1]<0){const e=grid[i]+(grid[i+1]-grid[i])*(-totalPayoff[i])/(totalPayoff[i+1]-totalPayoff[i]); bes.push(fmtPct(e));}} const maxEl=document.getElementById('stat-max'); maxEl.textContent=fmtVal(maxP,3); maxEl.className='stat-card-value '+(maxP>=0?'val-pos':'val-neg'); document.getElementById('stat-max-sub').textContent='within selected range'; const minEl=document.getElementById('stat-min'); minEl.textContent=fmtVal(minP,3); minEl.className='stat-card-value '+(minP>=0?'val-pos':'val-neg'); document.getElementById('stat-min-sub').textContent='within selected range'; const fwdEl=document.getElementById('stat-fwd'); fwdEl.textContent=fmtVal(fwdP,3); fwdEl.className='stat-card-value '+(fwdP>=0?'val-pos':fwdP<0?'val-neg':'val-neutral'); document.getElementById('stat-fwd-sub').textContent='at F = '+fmtPct(fwd); const beEl=document.getElementById('stat-be'); beEl.textContent=bes.length?[...new Set(bes)].join(' · '):'No crossover'; beEl.style.fontSize=bes.length>2?'11px':'13px';}
+function updateSensitivities(){const body=document.getElementById('sens-tbody'); body.innerHTML=''; let totals={pv:0,delta:0,gamma:0,vega:0,theta:0}; if(!legs.length){body.innerHTML='<tr><td colspan="9">No legs added.</td></tr>';} legs.forEach((leg,i)=>{const g=mtmSens(leg); Object.keys(totals).forEach(k=>totals[k]+=g[k]); const tr=document.createElement('tr'); tr.innerHTML=`<td class="mono">Leg ${i+1}</td><td>${labelType(leg.type)}</td><td>${leg.direction}</td><td class="mono">${leg.strike.toFixed(2)}%</td><td class="mono">${fmtVal(g.pv)}</td><td class="mono">${fmtVal(g.delta)}</td><td class="mono">${fmtVal(g.gamma)}</td><td class="mono">${fmtVal(g.vega)}</td><td class="mono">${fmtVal(g.theta)}</td>`; body.appendChild(tr);}); document.getElementById('tot-pv').textContent=fmtVal(totals.pv); document.getElementById('tot-delta').textContent=fmtVal(totals.delta); document.getElementById('tot-gamma').textContent=fmtVal(totals.gamma); document.getElementById('tot-vega').textContent=fmtVal(totals.vega); document.getElementById('tot-theta').textContent=fmtVal(totals.theta); document.getElementById('sens-sub').textContent=`Inputs: F=${(+document.getElementById('forwardRate').value).toFixed(2)}%, σ=${(+document.getElementById('vol').value).toFixed(2)}%, T=${(+document.getElementById('expiry').value).toFixed(2)}Y, DF=${(+document.getElementById('df').value).toFixed(4)}, τ=${getTau().toFixed(4)}`;}
+function updateLegend(){const c=document.getElementById('chart-legend'); c.innerHTML=''; c.appendChild(makeLegItem('strategy','Strategy Total','#2563eb')); if(showLegs){legs.forEach((leg,i)=>c.appendChild(makeLegItem('leg'+i,`Leg ${i+1}: ${labelType(leg.type)} ${leg.direction==='buy'?'↑':'↓'} ${leg.strike}%`,legColor(i))));}}
+function makeLegItem(key,label,color){const el=document.createElement('div'); el.className='legend-item'+(hiddenSeries.has(key)?' hidden':''); el.innerHTML=`<div class="legend-dot" style="background:${color}"></div>${label}`; el.onclick=()=>{hiddenSeries.has(key)?hiddenSeries.delete(key):hiddenSeries.add(key); update();}; return el;}
+function toggleLegs(){showLegs=!showLegs; document.getElementById('legs-sw').classList.toggle('on',showLegs); update();}
+function labelType(t){if(t==='swap') return 'IRS'; if(t==='forward') return 'Forward/FRA'; return t.charAt(0).toUpperCase()+t.slice(1);}
+function addLeg(type='cap',dir='buy',strike=3){legs.push({type,direction:dir,strike}); renderLegs(); update();}
+function removeLeg(i){legs.splice(i,1); renderLegs(); update();}
+function setLegField(i,field,val){legs[i][field]=val; renderLegs(); update();}
+function renderLegs(){const list=document.getElementById('legs-list'); list.innerHTML=''; legs.forEach((leg,i)=>{const card=document.createElement('div'); card.className='leg-card'; card.innerHTML=`<div class="leg-card-header"><div class="leg-dot" style="background:${legColor(i)}"></div><span class="leg-title">Leg ${i+1}</span><span class="leg-badge leg-badge-${leg.direction}">${leg.direction.toUpperCase()}</span><button class="leg-del-btn" onclick="removeLeg(${i})">×</button></div><div class="leg-card-body"><div class="grid-3"><div class="field"><div class="field-label">Instrument</div><select onchange="setLegField(${i},'type',this.value)"><option value="cap" ${leg.type==='cap'?'selected':''}>Cap</option><option value="floor" ${leg.type==='floor'?'selected':''}>Floor</option><option value="swap" ${leg.type==='swap'?'selected':''}>IRS</option><option value="forward" ${leg.type==='forward'?'selected':''}>Forward/FRA</option></select></div><div class="field"><div class="field-label">Direction</div><div class="seg"><button class="seg-btn ${leg.direction==='buy'?'active-buy':''}" onclick="setLegField(${i},'direction','buy')">Buy</button><button class="seg-btn ${leg.direction==='sell'?'active-sell':''}" onclick="setLegField(${i},'direction','sell')">Sell</button></div></div><div class="field"><div class="field-label">Strike %</div><input type="number" value="${leg.strike}" step="0.25" onchange="setLegField(${i},'strike',parseFloat(this.value)||0)"></div></div></div>`; list.appendChild(card);});}
+const PRESETS={capSpread:[['cap','buy',3],['cap','sell',5]],collar:[['cap','buy',5],['floor','sell',2],['swap','sell',3]],swap:[['swap','sell',3]],floor:[['floor','buy',2]],reverseCollar:[['cap','sell',5],['floor','buy',2]],cap:[['cap','buy',3]],forwardBuy:[['forward','buy',3]],forwardSell:[['forward','sell',3]]};
+function loadPreset(name){legs=[]; PRESETS[name].forEach(([t,d,s])=>legs.push({type:t,direction:d,strike:s})); renderLegs(); update();}
+function exportCSV(){if(!legs.length){alert('Add at least one leg first.'); return;} const grid=buildGrid(), u=document.getElementById('yUnit').value==='pct'?'%':'M EUR'; let csv=`Euribor,Strategy (${u})`; if(showLegs) legs.forEach((_,i)=>csv+=`,Leg ${i+1} (${u})`); csv+='\n'; grid.forEach(e=>{const total=legs.reduce((s,l)=>s+legPayoff(l,e),0); let row=`${(e*100).toFixed(4)},${yVal(total).toFixed(5)}`; if(showLegs) legs.forEach(l=>row+=`,${yVal(legPayoff(l,e)).toFixed(5)}`); csv+=row+'\n';}); const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'})); a.download='strategy_payoff.csv'; a.click();}
+function shareLink(){const state={legs,eMin:document.getElementById('eMin').value,eMax:document.getElementById('eMax').value,eStep:document.getElementById('eStep').value,tau:document.getElementById('tauSelect').value,tauCustom:document.getElementById('tauCustom').value,notional:document.getElementById('notional').value,yUnit:document.getElementById('yUnit').value,forwardRate:document.getElementById('forwardRate').value,expiry:document.getElementById('expiry').value,vol:document.getElementById('vol').value,df:document.getElementById('df').value}; const url=window.location.href.split('?')[0]+'?s='+btoa(JSON.stringify(state)); navigator.clipboard.writeText(url).then(()=>alert('Link copied!\n\nSend it to your client — they will see the same strategy loaded automatically.'));}
+function loadFromURL(){const s=new URLSearchParams(window.location.search).get('s'); if(!s) return; try{const st=JSON.parse(atob(s)); if(st.legs){legs=st.legs; renderLegs();} ['eMin','eMax','eStep','tauCustom','notional','yUnit','forwardRate','expiry','vol','df'].forEach(id=>{if(st[id]!==undefined) document.getElementById(id).value=st[id];}); if(st.tau){document.getElementById('tauSelect').value=st.tau; onTauChange();}}catch(e){console.warn('Invalid shared state',e);}}
+window.addEventListener('DOMContentLoaded',()=>{loadFromURL(); if(!legs.length) loadPreset('capSpread'); const wrap=document.getElementById('chart-wrap'), canvas=document.getElementById('myChart'); new ResizeObserver(()=>{canvas.style.height=Math.max(280,wrap.clientHeight-20)+'px'; if(myChart) myChart.resize();}).observe(wrap); update();});
+</script>
+</body>
+</html>
